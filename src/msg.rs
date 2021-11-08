@@ -13,6 +13,10 @@ pub enum ExecuteMsg {
     Distribute {
         recipients: Vec<AddressPortion>
     },
+    WithdrawRandomEarth {
+        address: String,
+        amount: Uint128,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

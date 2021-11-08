@@ -24,6 +24,30 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "withdraw_random_earth"
+      ],
+      "properties": {
+        "withdraw_random_earth": {
+          "type": "object",
+          "required": [
+            "address",
+            "amount"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            },
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
     }
   ],
   "definitions": {

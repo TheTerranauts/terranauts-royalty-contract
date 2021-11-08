@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RandomEarthWithdraw",
+  "type": "object",
+  "required": [
+    "withdraw"
+  ],
+  "properties": {
+    "withdraw": {
+      "$ref": "#/definitions/Withdraw"
+    }
+  },
+  "definitions": {
+    "Asset": {
+      "type": "object",
+      "required": [
+        "amount",
+        "info"
+      ],
+      "properties": {
+        "amount": {
+          "type": "string"
+        },
+        "info": {
+          "$ref": "#/definitions/Info"
+        }
+      }
+    },
+    "Info": {
+      "type": "object",
+      "required": [
+        "native_token"
+      ],
+      "properties": {
+        "native_token": {
+          "$ref": "#/definitions/NativeToken"
+        }
+      }
+    },
+    "NativeToken": {
+      "type": "object",
+      "required": [
+        "denom"
+      ],
+      "properties": {
+        "denom": {
+          "type": "string"
+        }
+      }
+    },
+    "Withdraw": {
+      "type": "object",
+      "required": [
+        "asset"
+      ],
+      "properties": {
+        "asset": {
+          "$ref": "#/definitions/Asset"
+        }
+      }
+    }
+  }
+}

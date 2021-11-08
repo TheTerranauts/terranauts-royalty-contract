@@ -1,15 +1,17 @@
 use std::io::Stderr;
 use std::iter::Map;
 
-use cosmwasm_std::{Addr, Api, BalanceResponse, BankMsg, BankQuery, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, from_binary, MessageInfo, Querier, QueryRequest, Response, StdError, StdResult, Storage, SubMsg, to_binary, Uint128, Uint256};
+use cosmwasm_std::{Addr, Api, BalanceResponse, BankMsg, BankQuery, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, from_binary, MessageInfo, Querier, QueryRequest, Response, StdError, StdResult, Storage, SubMsg, to_binary, Uint128, Uint256, WasmMsg};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cw2::set_contract_version;
 use cw721::OwnerOfResponse;
 use cw721_base::QueryMsg as NftQueryMsg;
+use serde::Serialize;
 
 use crate::error::ContractError;
 use crate::msg::{AddressPortion, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use crate::randomearth_msg::{Info, NativeToken, RandomEarthWithdraw, Withdraw, Asset};
 use crate::state::{Config, CONFIG};
 
 // version info for migration info
@@ -49,6 +51,7 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::Distribute { recipients } => try_distribute(deps, info, recipients),
+        ExecuteMsg::WithdrawRandomEarth { address, amount } => try_withdraw_randomearth(deps, info, address, amount)
     }
 }
 
@@ -70,6 +73,39 @@ pub fn query_balance(
     }))?;
 
     Ok(balance.into())
+}
+
+pub fn try_withdraw_randomearth(deps: DepsMut, info: MessageInfo, address: String, amount: Uint128) -> Result<Response, ContractError> {
+    let cfg = CONFIG.load(deps.storage)?;
+
+    if info.sender.clone().into_string() != cfg.owner {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    let msg = &RandomEarthWithdraw {
+        withdraw: Withdraw {
+            asset: Asset {
+                info: Info {
+                    native_token : NativeToken {
+                        denom: "uluna".to_string()
+                    }
+                },
+                amount: amount.to_string(),
+            },
+        }
+    };
+
+    let mut submsg: Vec<SubMsg> = Vec::new();
+    submsg.push(
+        SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: address,
+            msg: to_binary(
+                msg)
+                .unwrap(),
+            funds: vec![],
+        }), ));
+
+    Ok(Response::new().add_submessages(submsg))
 }
 
 pub fn try_distribute(deps: DepsMut, info: MessageInfo, recipients: Vec<AddressPortion>) -> Result<Response, ContractError> {
@@ -185,6 +221,51 @@ mod tests {
             SubMsg::new(CosmosMsg::Bank(BankMsg::Send {
                 to_address: "address2".to_string(),
                 amount: vec![Coin::new(20, "uluna")],
+            }))
+        );
+    }
+
+    #[test]
+    fn test_withdraw() {
+        let mut deps = mock_dependencies(&[]);
+        let env = mock_env();
+        let owner = "creator";
+
+        let config = Config {
+            owner: Addr::unchecked(owner.to_string()),
+        };
+        CONFIG.save(deps.as_mut().storage, &config).unwrap();
+
+        let info = mock_info("creator", &[]);
+
+        let msg = ExecuteMsg::WithdrawRandomEarth {
+            address: "addr".to_string(),
+            amount: Uint128::from(100 as u128),
+        };
+
+        let res =
+            execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+
+
+        let withdraw_sub_msg = RandomEarthWithdraw {
+            withdraw: Withdraw {
+                asset: Asset {
+                    info: Info {
+                        native_token : NativeToken {
+                            denom: "uluna".to_string()
+                        }
+                    },
+                    amount: Uint128::from(100 as u128).to_string(),
+                },
+            }
+        };
+
+        assert_eq!(
+            res.messages[0],
+            SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: "addr".to_string(),
+                msg: to_binary(&withdraw_sub_msg).unwrap(),
+                funds: Vec::new(),
             }))
         );
     }
